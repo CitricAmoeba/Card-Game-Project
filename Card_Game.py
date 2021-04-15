@@ -1,7 +1,7 @@
 """
 Written by Samuel Plane
 
-Last edited on 25/12/2020
+Last edited on 15/04/2021
 
 Notes:
 
@@ -50,6 +50,15 @@ Implemented most of the prepare() subroutine
 Finished prepare()
 Added some docstrings and comments
 
+08/03/2021
+Created a method for Base, copy() creating a copy of the current Base
+instance so it can be used by the AI to search through all possible actions
+
+15/04/2021
+Removed an outdated constructor for Base
+Changed some variable names to better describe their function
+Added isPlayer field to Base to determine if the Base is controlled by the player or the AI
+Changed prepare into a method of Base & made it more modular so it can be used by both player and AI
 
 """
 
@@ -62,6 +71,7 @@ class Base(object):
 
     pop (short for population)
     defences
+    supply_lines
     _deck
     _hand
     _field
@@ -73,17 +83,21 @@ class Base(object):
     draw
     get_number_of_draws
     get_number_of_actions
+    copy
 
     """
-    
 
-    def __init__(self,deck): #deck is a list containing instances of the class Card
-        self.pop = 8000
-        self.supply_lines = 3500
-        self.defences = 3500
+
+    #'d' is repeated for some parameters to differentiate them
+    #from keywords and the fields
+    def __init__(self,population,sup_lines,deff,deck,hand,fieldd,isAPlayer):
+        self.pop = population
+        self.supply_lines = sup_lines
+        self.defences = deff
         self._deck = deck
-        self._hand = []
-        self.field = [None,None,None,None,None]
+        self._hand = hand
+        self.field = fieldd
+        self.isPlayer = isAPlayer
 
 
     def display_hand(self):
@@ -115,8 +129,72 @@ class Base(object):
             return 2
         else:
             return 1
-        
 
+
+    def getUnitToPrepare(self):
+        return 1
+
+    def calculateUnitToPrepare(self):
+        return 1
+
+    def prepare(self):
+        """
+            Places a card from the base's hand into it's field
+
+            First it checks if there are any cards in the base's hand that can be placed, and then
+            if there is any room on the field to place the card. If these two conditions are met,
+            the base's controller (human or AI) will select a card to place and what position
+            to place it im
+
+        """
+        #Checks for a unit to prepare in the players hand
+        if len(self._hand) > 0:
+            space = 0
+            #Checks if there is a space available on the field for the unit
+            while space < 5:
+                if self.field[space] == None:
+                    #As we have found an empty space we set space to prevent the loop from checking further spaces
+                    space = 5
+                    #User selects a valid unit to prepare from their hand
+                    if self.isPlayer == True:
+                        unit_to_prepare = self.getUnitToPrepare()
+                    else:
+                        unit_to_prepare = self.calculateUnitToPrepare()
+
+                    #Can reuse this code to get players input for the unit to prepare
+                    """
+                    unit_to_prepare = -1
+                    while (unit_to_prepare < 0) or (unit_to_prepare >= len(self._hand)):
+                            unit_to_prepare = int(input('Which unit would you like to prepare?'))
+                            if (unit_to_prepare < 0) or (unit_to_prepare < 9):
+                                print('That number is invalid')
+                    """
+
+                    #User selects a valid position to place the selected unit in
+                    prep_position = -1
+                    while (prep_position < 0) or (prep_position > 4) or (self.field[prep_position] != None):
+                        prep_position = int(input('Which position would you like to prepare in?'))
+                        if (prep_position < 0) or (prep_position > 4):
+                            print('That number is invalid')
+                        elif (self.field[prep_position] != None):
+                            print('That space is occupied')
+
+                    #Places the selected unit into the selected position, and removes it from the player's hand
+                    self.field[prep_position] = self._hand.pop(unit_to_prepare)
+
+                space += 1
+
+
+    def copy(self):
+        #Returns a copy of the current instance for use by the AI
+        copy_pop = self.pop
+        copy_sup = self.supply_lines
+        copy_def = self.defences
+        copy_deck = self._deck.copy()
+        copy_hand = self._hand.copy()
+        copy_field = self.field.copy()
+        copyIsPlayer = self.isPlayer
+        return Base(copy_deck, copy_pop, copy_sup, copy_def, copy_hand, copy_field, copyIsPlayer)
 
 class Card(object):
     """
@@ -147,7 +225,7 @@ class Card(object):
 
 
     #Make sure this is only called when ready is less than 2
-    def update_ready(position_on_field):
+    def update_ready(self, position_on_field):
         if position_on_field == 5:
             self.ready += 1
         else:
@@ -176,20 +254,17 @@ class Card(object):
 
 ##End of classes
 
-
-
-
 ##Instantiates variables and objects
 
 #Instances of Card
-cards = [['Behemoth',700,600],['Mutated Scorpion',800,400],['Scrap Tank',400,800],['Veteran Scavenger',300,300],['Mercenaries',400,300],['Saboteurs',500,200],['Heavy Weaponeers',600,400],['Lookout',300,100],['Wanderer',700,700],['Renegade Master',600,500]]
+card_values = [['Behemoth',700,600],['Mutated Scorpion',800,400],['Scrap Tank',400,800],['Veteran Scavenger',300,300],['Mercenaries',400,300],['Saboteurs',500,200],['Heavy Weaponeers',600,400],['Lookout',300,100],['Wanderer',700,700],['Renegade Master',600,500]]
 all_cards = []
-for each_value in cards:
+for each_value in card_values:
     all_cards.append(Card(each_value[0], each_value[1], each_value[2]))
 
 #Instances of Base
-enemy_base = Base(all_cards) #When players can choose their own decks, change this as its just a list of all the cards I've created 
-player_base = Base(all_cards)
+enemy_base = Base(8000,3500,3500,all_cards,[], [None, None, None, None, None], False) #When players can choose their own decks, change this as its just a list of all the cards I've created 
+player_base = Base(8000,3500,3500,all_cards,[],[None, None, None, None, None], True)
 
 #Global variables
 game_finished = False
@@ -230,21 +305,21 @@ def display_board():
             spaces = 20-len(each_space_in_field.name)
             pre_spaces = spaces // 2
             line_1 += ' '*pre_spaces
-            line_1 += each_value.name
+            line_1 += each_space_in_field.name
             line_1 += ' '*spaces-pre_spaces
             line_1 += '|'
 
             spaces = 20-len(str(each_space_in_field.attack))
             pre_spaces = spaces // 2
             line_2 += ' '*pre_spaces
-            line_2 += str(each_value.attack)
+            line_2 += str(each_space_in_field.attack)
             line_2 += ' '*spaces-pre_spaces
             line_2 += '|'
 
             spaces = 20 - len(str(each_space_in_field.defence))
             pre_spaces = spaces // 2
             line_3 += ' '*pre_spaces
-            line_3 += str(each_value.defence)
+            line_3 += str(each_space_in_field.defence)
             line_3 += ' '*spaces-pre_spaces
             
     for each_space_in_field in player_base.field:
@@ -302,50 +377,10 @@ def display_board():
     print()
     print('  Population:',str(player_base.pop) + '                         Supply Lines:',str(player_base.supply_lines) + '                        Defences:' + str(player_base.defences))
     print()
-
-
-"""
-Change this to work for both players, raher than just one player
-"""
-def prepare():
-    """
-    """
-    #Checks for a unit to prepare in the players hand
-    if len(player_base._hand) > 0:
-        space = 0
-        #Checks if there is a space available on the field for the unit
-        while space < 5:
-            if player_base._field[space] == None:
-                #As we have found an empty space we set space to prevent the loop from checking further spaces
-                space = 5
-                #User selects a valid unit to prepare from their hand
-                unit_to_prepare = -1
-                while (unit_to_prepare < 0) or (unit_to_prepare >= len(player_base._hand)):
-                        unit_to_prepare = int(input('Which unit would you like to prepare?'))
-                        if (unit_to_prepare < 0) or (unit_to_prepare < 9):
-                            print('That number is invalid')
-
-
-                #User selects a valid position to place the selected unit in
-                prep_position = -1
-                while (prep_position < 0) or (prep_position > 4) or (player_base._field[prep_position] != None):
-                    prep_position = int(input('Which position would you like to prepare in?'))
-                        if (prep_position < 0) or (prep_position > 4):
-                            print('That number is invalid')
-                        elif (player_base._field[prep_position] != None):
-                            print('That space is occupied')
-
-                #Places the selected unit into the selected position, and removes it from the player's hand
-                player_base._field[prep_position] = player_base._hand.pop(unit_to_prepare)
-
-            space += 1
                                     
                             
-                            
-        
-
 """
-Change this to work for both players, raher than just one player
+Change this to work for both players, rather than just one player
 """
 def attack():
     #checks if there are any units to attack with
@@ -403,7 +438,7 @@ def attack():
                 enemy_base.field[target].defence -= attacking_damage
 
 
-# !! End the turn loop early if the player presses f (haha, ironic)
+# !! End the turn loop early if the player presses f
 def player_act(action_no):
     """
     User takes an action in the game based on their input
@@ -430,10 +465,10 @@ def player_act(action_no):
 
     #Calls subroutine based on which action the player has chosen to take
     if action == 'a':
-        attack();
+        attack()
         return action_no + 1
     elif action == 'p':
-        prepare();
+        player_base.prepare(player_base)
         return action_no + 1
     elif action == 'f':
         return player_base.get_number_of_actions();
