@@ -1,7 +1,7 @@
 """
 Written by Samuel Plane
 
-Last edited on 15/04/2021
+Last edited on 16/04/2021
 
 Notes:
 
@@ -15,7 +15,7 @@ Notes:
 
 - Add docstrings
 
-- Change subroutines so they take in a base as an argument, allowing it to be used by both players
+- Create an accessor for the Base's isPlayer field 
 
 
 LOGBOOK
@@ -59,6 +59,11 @@ Removed an outdated constructor for Base
 Changed some variable names to better describe their function
 Added isPlayer field to Base to determine if the Base is controlled by the player or the AI
 Changed prepare into a method of Base & made it more modular so it can be used by both player and AI
+Created Base methods to determine the unit to prepare by both human players and AI
+
+16/04/2021
+Changed attack into a method of Base
+Created Base methods to determine the attacking unit by both human players and AI
 
 """
 
@@ -74,7 +79,8 @@ class Base(object):
     supply_lines
     _deck
     _hand
-    _field
+    field
+    isPlayer
 
     Methods:
 
@@ -84,6 +90,8 @@ class Base(object):
     get_number_of_draws
     get_number_of_actions
     copy
+    attack
+    prepare
 
     """
 
@@ -121,6 +129,7 @@ class Base(object):
         else:
             return 1
 
+
     def get_number_of_actions(self):
         #Calculates how many actions can be taken this turn
         if self.defences > 2000:
@@ -136,6 +145,19 @@ class Base(object):
 
     def calculateUnitToPrepare(self):
         return 1
+
+    def getUnitToAttack(self):
+        return 1
+
+    def calculateUnitToAttack(self):
+        return 1
+
+    def getTarget(self):
+        return 1
+
+    def calculateTarget(self):
+        return 1
+
 
     def prepare(self):
         """
@@ -183,6 +205,84 @@ class Base(object):
                     self.field[prep_position] = self._hand.pop(unit_to_prepare)
 
                 space += 1
+
+
+    def attack(self, target_base):
+        #checks if there are any units to attack with
+            can_attack = False
+            position = 0
+            while position < 5 and can_attack == False:
+                if isinstance(self.field[position],Card):
+                    if self.field[position].ready == 2:
+                        can_attack = True
+                    else:
+                        position += 1
+                else:
+                    position += 1
+
+            if can_attack == False:
+                return
+            else:
+                can_attack = False
+
+            if can_attack == True:
+
+                #user selects valid attacker
+                if self.isPlayer == True:
+                    attacker = self.getUnitToAttack()
+                else:
+                    attacker = self.calculateUnitToAttack()
+                """
+                attacker = 100
+                while attacker > 4 or attacker < 0:
+                    attacker = int(input('Which unit should attack?'))
+                    if (attacker >= 0) and (attacker < 5):
+                        if not isinstance (self.field[attacker],Card):
+                            print('There is no card in that spot')
+                            attacker = 100
+                """
+
+                #If attacker is a sabotage unit, double attack
+                #!! Should it be triple?
+                if attacker != 5:
+                    attacking_damage = self.field[attacker].attack
+                else:
+                    attacking_damage = self.field[attacker].attack * 2
+
+                #user selects valid target
+                if self.isPlayer == True:
+                    target = self.getTarget()
+                else:
+                    target = self.calculateTarget()
+                """
+                print('Select 5 for population, 6 for defences, 7 for supply lines')
+                target = 100
+                
+                while target > 7 or target < 0:
+                    target = int(input('Which unit should be attacked?'))
+                    if (target >= 0) and (target < 5):
+                        if not isinstance (target_base.field[target],Card):
+                            target = 100
+                """
+                    
+                #Target has health removed    
+                if target == 7:
+                    target_base.supply_lines -= attacking_damage
+                elif target == 6:
+                    target_base.defences -= attacking_damage
+                elif target == 5:
+                    target_base.pop -= attacking_damage
+                else:
+                    #Both the attacker and target take damage based on the attack value of the other card
+                    target_base.field[target].defence -= attacking_damage
+                    self.field[attacker].defence -= target_base.field[target].attack // 2
+
+                    #If either card has lost all their health they are removed from the field
+                    if target_base.field[target].defence <= 0:
+                        target_base.field[target] = None
+
+                    if self.field[attacker].defence <= 0:
+                        self.field[attacker] = None
 
 
     def copy(self):
@@ -378,65 +478,6 @@ def display_board():
     print('  Population:',str(player_base.pop) + '                         Supply Lines:',str(player_base.supply_lines) + '                        Defences:' + str(player_base.defences))
     print()
                                     
-                            
-"""
-Change this to work for both players, rather than just one player
-"""
-def attack():
-    #checks if there are any units to attack with
-        can_attack = False
-        position = 0
-        while position < 5 and can_attack == False:
-            if isinstance(player_base.field[position],Card):
-                if player_base.field[position].ready == 2:
-                    can_attack = True
-                else:
-                    position += 1
-            else:
-                position += 1
-
-        if can_attack == False:
-            return
-        else:
-            can_attack = False
-
-        if can_attack == True:
-            #user selects valid attacker
-            attacker = 100
-            while attacker > 4 or attacker < 0:
-                attacker = int(input('Which unit should attack?'))
-                if (attacker >= 0) and (attacker < 5):
-                    if not isinstance (player_base.field[attacker],Card):
-                        print('There is no card in that spot')
-                        attacker = 100
-
-            #If attacker is a sabotage unit, double attack
-            #!! Should it be triple?
-            if attacker != 5:
-                attacking_damage = player_base.field[attacker].attack
-            else:
-                attacking_damage = player_base.field[attacker].attack * 2
-
-            #user selects valid target
-            print('Select 5 for population, 6 for defences, 7 for supply lines')
-            target = 100
-            
-            while target > 7 or target < 0:
-                target = int(input('Which unit should be attacked?'))
-                if (target >= 0) and (target < 5):
-                    if not isinstance (enemy_base.field[target],Card):
-                        target = 100
-                
-            #Target has health removed    
-            if target == 7:
-                enemy_base.supply_lines -= attacking_damage
-            elif target == 6:
-                enemy_base.defences -= attacking_damage
-            elif target == 5:
-                enemy_base.pop -= attacking_damage
-            else:
-                enemy_base.field[target].defence -= attacking_damage
-
 
 # !! End the turn loop early if the player presses f
 def player_act(action_no):
@@ -465,10 +506,10 @@ def player_act(action_no):
 
     #Calls subroutine based on which action the player has chosen to take
     if action == 'a':
-        attack()
+        player_base.attack(enemy_base)
         return action_no + 1
     elif action == 'p':
-        player_base.prepare(player_base)
+        player_base.prepare()
         return action_no + 1
     elif action == 'f':
         return player_base.get_number_of_actions();
